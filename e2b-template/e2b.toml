@@ -1,0 +1,11 @@
+# E2B template config — read by `e2b template build`.
+
+template_id   = "helios-base"
+template_name = "helios-base"
+dockerfile    = "Dockerfile"
+cpu_count     = 2
+memory_mb     = 2048
+start_cmd     = ""
+
+# Pin Ubuntu 22.04 base via the e2bdev/code-interpreter image. The Dockerfile
+# layers Node 22, ripgrep, git, codex, openclaude on top.

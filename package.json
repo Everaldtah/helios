@@ -1,0 +1,57 @@
+{
+  "name": "@everaldtah/helios",
+  "version": "0.1.0",
+  "description": "HELIOS — combined coding-agent harness that orchestrates openai/codex and Gitlawb/openclaude inside an E2B Linux sandbox. Built for the Solis agent.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "bin": {
+    "helios": "./dist/cli.js"
+  },
+  "files": [
+    "dist/",
+    "src/",
+    "e2b-template/",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "scripts": {
+    "build": "tsc",
+    "prepare": "npm run build",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "e2b": "^1.0.5"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.5.0"
+  },
+  "keywords": [
+    "ai",
+    "agent",
+    "harness",
+    "codex",
+    "openclaude",
+    "e2b",
+    "sandbox",
+    "tool-use",
+    "coding-agent"
+  ],
+  "license": "MIT",
+  "author": "Everaldtah",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Everaldtah/helios.git"
+  }
+}
