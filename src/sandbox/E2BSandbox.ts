@@ -83,11 +83,28 @@ export class E2BSandbox {
       }
     }
 
-    this.ref = await Sandbox.create({
-      apiKey: this.cfg.apiKey,
-      template: this.cfg.template ?? 'helios-base',
-      timeoutMs: 30_000,
-    });
+    const wantedTemplate = this.cfg.template ?? 'helios-base';
+    try {
+      this.ref = await Sandbox.create({
+        apiKey: this.cfg.apiKey,
+        template: wantedTemplate,
+        timeoutMs: 30_000,
+      });
+    } catch (e) {
+      // Custom template not built yet, or unknown to the account. Fall back
+      // to E2B's default image so the harness still works — installer.ts
+      // probes and installs codex + openclaude on demand (slow first call,
+      // normal thereafter).
+      const msg = (e as Error).message || '';
+      const looksTemplateRelated =
+        /template/i.test(msg) || /404/.test(msg) || /not found/i.test(msg) || /not exist/i.test(msg);
+      if (!looksTemplateRelated) throw e;
+      this.log(`template "${wantedTemplate}" unavailable (${msg.slice(0, 120)}); falling back to E2B default image`);
+      this.ref = await Sandbox.create({
+        apiKey: this.cfg.apiKey,
+        timeoutMs: 30_000,
+      });
+    }
     this.wasCold = true;
     await this.tryKeepAlive();
     return this.ref;

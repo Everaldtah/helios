@@ -20,27 +20,32 @@ export async function ensureUpstreamCLIs(
     log('upstream CLIs already present (helios-base template)');
   } else {
     log('upstream CLIs missing; installing on the fly (slow path)');
-    const r = await sbx.run(
-      // -g requires npm; node:22 image carries npm. We skip postinstall
-      // scripts (`--ignore-scripts` would block codex's binary download).
-      'set -e; ' +
-      'export DEBIAN_FRONTEND=noninteractive; ' +
-      'curl -fsSL https://deb.nodesource.com/setup_22.x | bash - >/dev/null 2>&1 || true; ' +
-      'apt-get install -y nodejs >/dev/null 2>&1 || true; ' +
-      'npm install -g @openai/codex @gitlawb/openclaude 2>&1 | tail -5; ' +
-      'command -v codex && command -v openclaude',
-      { timeoutMs: 180_000 }
+    // Install into a user-writable prefix so we don't need sudo. We add
+    // ~/.helios/cli/bin to PATH for both this install command and every
+    // subsequent backend call (see seedProviderEnv below).
+    await sbx.run(
+      'set +e; ' +
+      'mkdir -p /home/user/.helios/cli; ' +
+      // Try a sudo-free user-prefix install first; fall back to sudo if
+      // the sandbox happens to allow it; never fail the whole prepare.
+      '(NPM_CONFIG_PREFIX=/home/user/.helios/cli ' +
+        'npm install -g @openai/codex @gitlawb/openclaude 2>&1 | tail -8) || ' +
+      '(sudo -n npm install -g @openai/codex @gitlawb/openclaude 2>&1 | tail -8) || ' +
+      'echo "[helios] upstream CLI install failed — code_task/apply_patch/web_* will be unavailable"; ' +
+      'true',
+      { timeoutMs: 240_000 }
     );
-    if (r.exitCode !== 0) {
-      throw new Error(`upstream CLI install failed: ${r.stderr.slice(0, 500)}`);
-    }
   }
 
   const versions = await sbx.run(
-    'codex --version 2>/dev/null || echo unknown; openclaude --version 2>/dev/null || echo unknown',
+    'export PATH=/home/user/.helios/cli/bin:$PATH; ' +
+    'codex --version 2>/dev/null || echo unknown; ' +
+    'openclaude --version 2>/dev/null || echo unknown',
     { timeoutMs: 10_000 }
   );
   const [codex, openclaude] = versions.stdout.split('\n').map((s) => s.trim());
+  if (codex === 'unknown')      log('codex unavailable — apply_patch + code_task(codex) will return a clear error');
+  if (openclaude === 'unknown') log('openclaude unavailable — code_task(openclaude) + web_* will return a clear error');
   return { codex: codex || 'unknown', openclaude: openclaude || 'unknown' };
 }
 
@@ -65,6 +70,9 @@ export async function seedProviderEnv(
     `export OPENAI_BASE_URL='${provider.baseUrl.replace(/'/g, "'\\''")}'\n` +
     `export OPENAI_API_KEY='${provider.apiKey.replace(/'/g, "'\\''")}'\n` +
     `export HELIOS_MODEL='${provider.model.replace(/'/g, "'\\''")}'\n` +
+    // Ensure the user-prefix npm install dir (used by the slow-path
+    // installer) is on PATH for every backend call.
+    `export PATH="/home/user/.helios/cli/bin:$PATH"\n` +
     `EOF\n` +
     `chmod 600 /home/user/.helios/provider.env`;
   const r = await sbx.run(script, { timeoutMs: 5_000 });
