@@ -13,7 +13,8 @@
     "./package.json": "./package.json"
   },
   "bin": {
-    "helios": "./dist/cli.js"
+    "helios": "./dist/cli.js",
+    "helios-sandbox": "./dist/cli-sandbox.js"
   },
   "files": [
     "dist/",

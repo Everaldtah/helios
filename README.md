@@ -111,6 +111,40 @@ spins a fresh sandbox if E2B has reaped the old one).
 
 ---
 
+## Standalone sandbox CLI (`helios-sandbox`)
+
+If you just want a sandbox with HELIOS preinstalled to **poke at
+interactively** — no host app, no Solis — use the `helios-sandbox`
+launcher. It spawns (or reattaches to) an E2B sandbox, makes sure the
+`helios` CLI is on `PATH`, injects your provider credentials, and drops
+you into a raw-mode `bash` over a PTY.
+
+```bash
+export E2B_API_KEY=e2b_...
+export NVIDIA_API_KEY=nvapi-...            # or OPENAI_API_KEY for non-NIM
+export HELIOS_MODEL=deepseek-ai/deepseek-v4-pro   # optional, default is this
+export HELIOS_E2B_TEMPLATE=helios-base     # optional; falls back to default image
+
+npx -p @everaldtah/helios helios-sandbox
+```
+
+Inside the resulting shell:
+
+```bash
+helios --help
+helios shell "uname -a"
+helios prompt --backend openclaude "list files in /tmp"
+codex --help          # also preinstalled in helios-base
+openclaude --help     # also preinstalled in helios-base
+```
+
+The sandbox id is cached in `~/.helios/cli-sandbox.json`, so re-running
+`helios-sandbox` reconnects to the same box (until E2B reaps it — by
+default the launcher requests a 1-hour idle TTL). Type `exit` in the
+shell to disconnect without killing the sandbox.
+
+---
+
 ## Tool surface
 
 `HeliosHarness.tools()` returns OpenAI-format tool definitions you can pass

@@ -36,6 +36,13 @@ RUN npm install -g @openai/codex \
 RUN npm install -g @gitlawb/openclaude \
     && openclaude --version
 
+# ── HELIOS CLI itself — so `helios shell|prompt|tools` works inside the box ──
+# Installed from GitHub because the package isn't on npm yet. The package's
+# `prepare` script runs `tsc` to build dist/ at install time.
+RUN npm install -g github:Everaldtah/helios \
+    && helios --help >/dev/null \
+    && echo "HELIOS CLI installed"
+
 # ── User dirs HELIOS expects ─────────────────────────────────────────────────
 RUN mkdir -p /home/user/work /home/user/.helios \
     && chown -R user:user /home/user || true
