@@ -21,7 +21,7 @@ async function main() {
       `  E2B_API_KEY          E2B sandbox API key\n` +
       `  OPENAI_BASE_URL      Provider base URL (or NVIDIA_BASE_URL)\n` +
       `  OPENAI_API_KEY       Provider API key (or NVIDIA_API_KEY)\n` +
-      `  HELIOS_MODEL         Model id (default: z-ai/glm-5.1)\n` +
+      `  HELIOS_MODEL         Model id (default: deepseek-ai/deepseek-v4-pro)\n` +
       `  HELIOS_E2B_TEMPLATE  Sandbox template (default: helios-base)\n`);
     return;
   }
@@ -35,7 +35,7 @@ async function main() {
     provider: {
       baseUrl: process.env.OPENAI_BASE_URL ?? process.env.NVIDIA_BASE_URL ?? 'https://integrate.api.nvidia.com/v1',
       apiKey:  process.env.OPENAI_API_KEY  ?? process.env.NVIDIA_API_KEY  ?? '',
-      model:   process.env.HELIOS_MODEL    ?? 'z-ai/glm-5.1',
+      model:   process.env.HELIOS_MODEL    ?? 'deepseek-ai/deepseek-v4-pro',
     },
     e2b: {
       apiKey:   process.env.E2B_API_KEY ?? '',
