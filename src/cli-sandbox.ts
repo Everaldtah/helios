@@ -97,10 +97,25 @@ async function spawnOrReconnect(Sandbox: SandboxStatic, apiKey: string, template
 async function ensureHeliosAndEnv(sbx: SandboxRef, env: Record<string, string>): Promise<void> {
   const probe = await sbx.commands.run('command -v helios || true', { timeoutMs: 10_000 });
   if (!probe.stdout.trim()) {
-    process.stderr.write('[helios-sandbox] helios CLI not on PATH — installing @everaldtah/helios (~30s)…\n');
+    process.stderr.write('[helios-sandbox] helios CLI not on PATH — cloning + building @everaldtah/helios (~45s)…\n');
+    // We clone-and-build instead of `npm install -g github:Everaldtah/helios`
+    // because the package's prepare script invokes tsc, and tsc isn't on PATH
+    // during a global install from git (devDeps aren't reliably visible to
+    // the prepare hook in that mode). Clone gives us a normal local install
+    // where node_modules/.bin/tsc is found by `npm run build`.
     const inst = await sbx.commands.run(
-      'mkdir -p $HOME/.local && npm config set prefix $HOME/.local && npm install -g github:Everaldtah/helios 2>&1',
-      { timeoutMs: 180_000 }
+      [
+        'set -e',
+        'mkdir -p $HOME/.local/bin /opt/helios-src',
+        'cd /opt/helios-src',
+        '[ -d .git ] || git clone --depth 1 https://github.com/Everaldtah/helios .',
+        'npm install --include=dev --no-audit --no-fund --loglevel=error',
+        'npm run build',
+        'ln -sf /opt/helios-src/dist/cli.js $HOME/.local/bin/helios',
+        'chmod +x /opt/helios-src/dist/cli.js',
+        'echo OK',
+      ].join(' && '),
+      { timeoutMs: 240_000 }
     );
     if (inst.exitCode !== 0) {
       process.stderr.write(`[helios-sandbox] helios install failed (exit ${inst.exitCode}):\n${inst.stdout.slice(-2000)}\n${inst.stderr.slice(-2000)}\n`);
@@ -126,8 +141,13 @@ async function interactive(sbx: SandboxRef): Promise<void> {
   const rows = process.stdout.rows || 30;
 
   process.stderr.write(`\x1b[36m[helios-sandbox] sandboxId=${sbx.sandboxId}\x1b[0m\n`);
-  process.stderr.write(`\x1b[36m[helios-sandbox] try: helios --help  |  helios shell "uname -a"  |  helios prompt --backend openclaude "list files"\x1b[0m\n`);
-  process.stderr.write(`\x1b[36m[helios-sandbox] type 'exit' to disconnect (sandbox keeps running for ~1h)\x1b[0m\n\n`);
+  process.stderr.write(`\x1b[36m[helios-sandbox] try:\x1b[0m\n`);
+  process.stderr.write(`\x1b[36m  helios --help       # CLI help\x1b[0m\n`);
+  process.stderr.write(`\x1b[36m  helios tools        # tool schema for the LLM\x1b[0m\n`);
+  process.stderr.write(`\x1b[36m  codex --help        # codex CLI (preinstalled in helios-base)\x1b[0m\n`);
+  process.stderr.write(`\x1b[36m  openclaude --help   # openclaude CLI (preinstalled in helios-base)\x1b[0m\n`);
+  process.stderr.write(`\x1b[36m  helios shell "uname -a"   # WARNING: spawns nested E2B sandbox\x1b[0m\n`);
+  process.stderr.write(`\x1b[36m[helios-sandbox] type 'exit' to disconnect (sandbox keeps running ~1h)\x1b[0m\n\n`);
 
   const handle = await sbx.pty.create({
     cols, rows,
@@ -175,6 +195,11 @@ async function interactive(sbx: SandboxRef): Promise<void> {
       OPENAI_BASE_URL: process.env.NVIDIA_BASE_URL || 'https://integrate.api.nvidia.com/v1',
       OPENAI_API_KEY:  nimKey,
       HELIOS_MODEL:    process.env.HELIOS_MODEL || 'deepseek-ai/deepseek-v4-pro',
+      // Forwarded so `helios shell|prompt` inside the sandbox can spawn its
+      // own (nested) sandbox to actually execute work. Yes, this means
+      // sandbox-inside-sandbox if you use those subcommands — it's a quirk
+      // of running an orchestrator inside its own runtime.
+      E2B_API_KEY:     apiKey,
     });
   }
 
